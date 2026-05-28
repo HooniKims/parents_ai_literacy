@@ -92,6 +92,76 @@ test("모바일 미리보기 슬라이드는 가로 페이지 밀림 없이 스�
   await expect(page.locator("[data-slide-viewer]")).toBeHidden();
 });
 
+test("전체화면 자동 회전 제한 메시지는 3초 뒤 사라진다", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(screen, "orientation", {
+      configurable: true,
+      value: {
+        lock: () => Promise.reject(new Error("orientation locked by device")),
+        unlock: () => {},
+      },
+    });
+  });
+
+  await page.goto("/");
+  await page.locator("[data-open-slide-viewer]").click();
+
+  await expect(page.locator("[data-viewer-tip]")).toHaveText("이 기기에서는 자동 회전이 제한됩니다");
+  await expect(page.locator("[data-viewer-tip]")).toBeHidden({ timeout: 4200 });
+});
+
+test("전체화면 이미지에서 핀치 확대가 적용된다", async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLElement.prototype.setPointerCapture = function noopSetPointerCapture() {};
+    HTMLElement.prototype.hasPointerCapture = function noopHasPointerCapture() {
+      return false;
+    };
+  });
+
+  await page.goto("/");
+  await page.locator("[data-open-slide-viewer]").click();
+
+  const transform = await page.locator("[data-viewer-image]").evaluate((image) => {
+    const first = {
+      bubbles: true,
+      cancelable: true,
+      clientX: 160,
+      clientY: 220,
+      pointerId: 1,
+      pointerType: "touch",
+    };
+    const second = {
+      bubbles: true,
+      cancelable: true,
+      clientX: 220,
+      clientY: 220,
+      pointerId: 2,
+      pointerType: "touch",
+    };
+
+    image.dispatchEvent(new PointerEvent("pointerdown", first));
+    image.dispatchEvent(new PointerEvent("pointerdown", second));
+    image.dispatchEvent(new PointerEvent("pointermove", { ...second, clientX: 340 }));
+
+    return image.style.transform;
+  });
+
+  expect(transform).toContain("scale(");
+  expect(transform).not.toContain("scale(1)");
+});
+
+test("전체화면 확대 이미지는 더블탭으로 원래 크기로 돌아간다", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("[data-open-slide-viewer]").click();
+
+  const image = page.locator("[data-viewer-image]");
+  await image.dblclick();
+  await expect(image).toHaveCSS("transform", /matrix\((?!1, 0, 0, 1, 0, 0)/);
+
+  await image.dblclick();
+  await expect(image).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
+});
+
 test("영어 전환 시 영어 슬라이드 이미지를 사용한다", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "English" }).click();
@@ -134,4 +204,84 @@ test("관리자 서명 복원 페이지가 base64 이미지를 복원한다", as
   await expect(page.getByText("서명 이미지를 복원했습니다.")).toBeVisible();
   await expect(page.locator("[data-preview]")).toBeVisible();
   await expect(page.locator("[data-download]")).toHaveAttribute("href", onePixelPng);
+});
+
+test("signature pad blocks pointer default action while drawing", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__signaturePreventedEvents = [];
+
+    const originalPreventDefault = Event.prototype.preventDefault;
+    Event.prototype.preventDefault = function patchedPreventDefault() {
+      if (this.target?.matches?.("[data-signature-pad]")) {
+        window.__signaturePreventedEvents.push(this.type);
+      }
+      return originalPreventDefault.call(this);
+    };
+
+    HTMLCanvasElement.prototype.setPointerCapture = function noopSetPointerCapture() {};
+    HTMLCanvasElement.prototype.hasPointerCapture = function noopHasPointerCapture() {
+      return false;
+    };
+  });
+
+  await page.goto("/");
+
+  const preventedEvents = await page.locator("[data-signature-pad]").evaluate((canvas) => {
+    const options = {
+      bubbles: true,
+      cancelable: true,
+      clientX: 20,
+      clientY: 20,
+      pointerId: 1,
+      pointerType: "touch",
+    };
+
+    canvas.dispatchEvent(new PointerEvent("pointerdown", options));
+    canvas.dispatchEvent(new PointerEvent("pointermove", { ...options, clientY: 160 }));
+    canvas.dispatchEvent(new PointerEvent("pointerup", { ...options, clientY: 160 }));
+
+    return window.__signaturePreventedEvents;
+  });
+
+  expect(preventedEvents).toEqual(["pointerdown", "pointermove", "pointerup"]);
+});
+
+test("signature form posts to the configured Apps Script endpoint", async ({ page }) => {
+  const appsScriptUrl =
+    "https://script.google.com/macros/s/AKfycbwYKXA_dPOpVhEtgur0EzNdFEymzBAT1_Ik04ioyHfyv3JC_kYK2mCfQIqrO11vKgWv/exec";
+  let submittedBody = "";
+
+  await page.route(appsScriptUrl, async (route) => {
+    submittedBody = route.request().postData() || "";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+
+  await page.goto("/");
+  await page.locator('select[name="grade"]').selectOption("1");
+  await page.locator('select[name="classNumber"]').selectOption("2");
+  await page.locator('input[name="studentName"]').fill("Student");
+  await page.locator('input[name="guardianName"]').fill("Guardian");
+
+  const signaturePad = page.locator("[data-signature-pad]");
+  await signaturePad.scrollIntoViewIfNeeded();
+  const box = await signaturePad.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box.x + 30, box.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 150, box.y + 90);
+  await page.mouse.up();
+
+  await page.locator("[data-submit-button]").click();
+  await expect(page.locator("[data-resubmit-button]")).toBeVisible();
+
+  const submitted = JSON.parse(submittedBody);
+  expect(submitted.grade).toBe("1");
+  expect(submitted.classNumber).toBe("2");
+  expect(submitted.studentName).toBe("Student");
+  expect(submitted.guardianName).toBe("Guardian");
+  expect(submitted.signatureImage).toMatch(/^data:image\/png;base64,/);
 });

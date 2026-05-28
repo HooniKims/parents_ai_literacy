@@ -18,7 +18,8 @@
   const CONFIG = {
     CANVA_EMBED_URL: "",
     CANVA_SHARE_URL: "",
-    APPS_SCRIPT_URL: "",
+    APPS_SCRIPT_URL:
+      "https://script.google.com/macros/s/AKfycbwYKXA_dPOpVhEtgur0EzNdFEymzBAT1_Ik04ioyHfyv3JC_kYK2mCfQIqrO11vKgWv/exec",
     SLIDE_IMAGES: {
       ko: makeSlideImages("ko", "ko-slide", "슬라이드", "AI 윤리, 리터러시 교육 슬라이드"),
       en: makeSlideImages("en", "en-slide", "Slide", "AI ethics and literacy education slide"),
@@ -238,6 +239,15 @@
   let swipeStart = null;
   let previewSwipeStart = null;
   let suppressPreviewClick = false;
+  let viewerTipTimer = 0;
+  let viewerScale = 1;
+  let viewerTranslateX = 0;
+  let viewerTranslateY = 0;
+  let viewerPointers = new Map();
+  let viewerPanStart = null;
+  let viewerPinchStart = null;
+  let viewerLastTapAt = 0;
+  let viewerLastZoomToggleAt = 0;
 
   function t(key, replacements = {}) {
     const dictionary = TRANSLATIONS[currentLanguage] || TRANSLATIONS.ko;
@@ -400,6 +410,7 @@
     viewerImage.srcset = slide.srcset;
     viewerImage.sizes = "100vw";
     viewerImage.alt = slide.alt;
+    resetViewerZoom();
     viewerCounter.textContent = count;
     viewerCaption.textContent =
       slides.length > 1 ? t("viewerCaptionSwipe") : t("viewerCaptionSingle");
@@ -475,10 +486,28 @@
     viewerNext.addEventListener("click", () => showSlide(currentSlideIndex + 1));
     closeSlideViewer.addEventListener("click", closeViewer);
     slideViewer.addEventListener("pointerdown", handleViewerPointerDown);
+    slideViewer.addEventListener("pointermove", handleViewerPointerMove);
     slideViewer.addEventListener("pointerup", handleViewerPointerUp);
-    slideViewer.addEventListener("pointercancel", clearSwipe);
+    slideViewer.addEventListener("pointercancel", handleViewerPointerCancel);
+    slideViewer.addEventListener("wheel", handleViewerWheel, { passive: false });
+    slideViewer.addEventListener("click", handleViewerClick);
+    slideViewer.addEventListener("dblclick", handleViewerDoubleClick);
     window.addEventListener("keydown", handleViewerKeydown);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+  }
+
+  function showViewerTip(text, duration = 0) {
+    window.clearTimeout(viewerTipTimer);
+    viewerTip.hidden = false;
+    viewerTip.textContent = text;
+
+    if (duration > 0) {
+      viewerTipTimer = window.setTimeout(() => {
+        if (slideViewerOpen) {
+          viewerTip.hidden = true;
+        }
+      }, duration);
+    }
   }
 
   async function openSlideViewer() {
@@ -490,8 +519,8 @@
     slideViewerOpen = true;
     slideViewer.hidden = false;
     document.body.classList.add("slide-viewer-open");
-    viewerTip.hidden = false;
-    viewerTip.textContent = t("viewerTipReady");
+    showViewerTip(t("viewerTipReady"));
+    resetViewerZoom();
     updateSlideUi();
 
     let orientationLocked = false;
@@ -509,14 +538,9 @@
     }
 
     if (orientationLocked) {
-      viewerTip.textContent = t("viewerTipLocked");
-      window.setTimeout(() => {
-        if (slideViewerOpen) {
-          viewerTip.hidden = true;
-        }
-      }, 1600);
+      showViewerTip(t("viewerTipLocked"), 1600);
     } else {
-      viewerTip.textContent = t("viewerTipLimited");
+      showViewerTip(t("viewerTipLimited"), 3000);
     }
   }
 
@@ -529,7 +553,9 @@
     slideViewer.hidden = true;
     document.body.classList.remove("slide-viewer-open");
     viewerTip.hidden = false;
+    window.clearTimeout(viewerTipTimer);
     clearSwipe();
+    resetViewerZoom();
 
     try {
       if (screen.orientation && screen.orientation.unlock) {
@@ -565,14 +591,131 @@
     }
   }
 
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function applyViewerZoom() {
+    viewerImage.style.transform = `translate3d(${viewerTranslateX}px, ${viewerTranslateY}px, 0) scale(${viewerScale})`;
+    slideViewer.classList.toggle("is-zoomed", viewerScale > 1.01);
+  }
+
+  function resetViewerZoom() {
+    viewerScale = 1;
+    viewerTranslateX = 0;
+    viewerTranslateY = 0;
+    viewerPointers.clear();
+    viewerPanStart = null;
+    viewerPinchStart = null;
+    applyViewerZoom();
+  }
+
+  function viewerPointDistance(points) {
+    const [first, second] = points;
+    return Math.hypot(second.x - first.x, second.y - first.y);
+  }
+
+  function updateViewerPointer(event) {
+    viewerPointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  function isViewerImageInteraction(event) {
+    return slideViewer.contains(event.target) && !event.target.closest("button");
+  }
+
   function handleViewerPointerDown(event) {
+    if (!isViewerImageInteraction(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    updateViewerPointer(event);
+    slideViewer.setPointerCapture?.(event.pointerId);
+
+    if (viewerPointers.size === 2) {
+      const points = Array.from(viewerPointers.values());
+      viewerPinchStart = {
+        distance: viewerPointDistance(points),
+        scale: viewerScale,
+      };
+      viewerPanStart = null;
+      swipeStart = null;
+      return;
+    }
+
+    if (viewerScale > 1.01) {
+      viewerPanStart = {
+        x: event.clientX,
+        y: event.clientY,
+        translateX: viewerTranslateX,
+        translateY: viewerTranslateY,
+      };
+      swipeStart = null;
+      return;
+    }
+
     swipeStart = {
       x: event.clientX,
       y: event.clientY,
     };
   }
 
+  function handleViewerPointerMove(event) {
+    if (!viewerPointers.has(event.pointerId)) {
+      return;
+    }
+
+    event.preventDefault();
+    updateViewerPointer(event);
+
+    if (viewerPointers.size >= 2 && viewerPinchStart) {
+      const points = Array.from(viewerPointers.values()).slice(0, 2);
+      const distance = viewerPointDistance(points);
+      if (viewerPinchStart.distance > 0) {
+        viewerScale = clamp(viewerPinchStart.scale * (distance / viewerPinchStart.distance), 1, 4);
+        if (viewerScale <= 1.01) {
+          viewerTranslateX = 0;
+          viewerTranslateY = 0;
+        }
+        applyViewerZoom();
+      }
+      return;
+    }
+
+    if (viewerPanStart && viewerScale > 1.01) {
+      viewerTranslateX = viewerPanStart.translateX + event.clientX - viewerPanStart.x;
+      viewerTranslateY = viewerPanStart.translateY + event.clientY - viewerPanStart.y;
+      applyViewerZoom();
+    }
+  }
+
   function handleViewerPointerUp(event) {
+    if (viewerPointers.has(event.pointerId)) {
+      event.preventDefault();
+      viewerPointers.delete(event.pointerId);
+    }
+
+    if (event.pointerId && slideViewer.hasPointerCapture?.(event.pointerId)) {
+      slideViewer.releasePointerCapture(event.pointerId);
+    }
+
+    if (viewerPointers.size < 2) {
+      viewerPinchStart = null;
+    }
+
+    if (viewerPanStart) {
+      viewerPanStart = null;
+      return;
+    }
+
+    if (viewerScale > 1.01) {
+      clearSwipe();
+      return;
+    }
+
     if (!swipeStart || slides.length <= 1) {
       clearSwipe();
       return;
@@ -585,6 +728,74 @@
       showSlide(deltaX < 0 ? currentSlideIndex + 1 : currentSlideIndex - 1);
     }
     clearSwipe();
+  }
+
+  function handleViewerPointerCancel(event) {
+    viewerPointers.delete(event.pointerId);
+    if (event.pointerId && slideViewer.hasPointerCapture?.(event.pointerId)) {
+      slideViewer.releasePointerCapture(event.pointerId);
+    }
+    if (viewerPointers.size === 0) {
+      viewerPanStart = null;
+      viewerPinchStart = null;
+      clearSwipe();
+    }
+  }
+
+  function handleViewerWheel(event) {
+    if (!slideViewerOpen || !isViewerImageInteraction(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    const delta = event.deltaY < 0 ? 0.18 : -0.18;
+    viewerScale = clamp(viewerScale + delta, 1, 4);
+    if (viewerScale <= 1.01) {
+      viewerTranslateX = 0;
+      viewerTranslateY = 0;
+    }
+    applyViewerZoom();
+  }
+
+  function handleViewerClick(event) {
+    if (!isViewerImageInteraction(event)) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - viewerLastTapAt <= 320) {
+      event.preventDefault();
+      toggleViewerZoom();
+      viewerLastTapAt = 0;
+      return;
+    }
+
+    viewerLastTapAt = now;
+  }
+
+  function handleViewerDoubleClick(event) {
+    if (!isViewerImageInteraction(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (Date.now() - viewerLastZoomToggleAt < 180) {
+      return;
+    }
+    toggleViewerZoom();
+  }
+
+  function toggleViewerZoom() {
+    viewerLastZoomToggleAt = Date.now();
+    if (viewerScale > 1.01) {
+      resetViewerZoom();
+      return;
+    }
+
+    viewerScale = 2.4;
+    viewerTranslateX = 0;
+    viewerTranslateY = 0;
+    applyViewerZoom();
   }
 
   function clearSwipe() {
@@ -695,6 +906,7 @@
   }
 
   function startDrawing(event) {
+    event.preventDefault();
     drawing = true;
     hasSignature = true;
     lastPoint = eventPoint(event);
@@ -706,6 +918,7 @@
       return;
     }
 
+    event.preventDefault();
     const point = eventPoint(event);
     const ctx = getCanvasContext();
     ctx.beginPath();
@@ -716,6 +929,7 @@
   }
 
   function stopDrawing(event) {
+    event.preventDefault();
     drawing = false;
     lastPoint = null;
     if (event.pointerId && canvas.hasPointerCapture(event.pointerId)) {

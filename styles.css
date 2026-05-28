@@ -680,6 +680,13 @@ body.slide-viewer-open {
   border-radius: 8px;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
   user-select: none;
+  transform-origin: center;
+  will-change: transform;
+  cursor: zoom-in;
+}
+
+.slide-viewer.is-zoomed .viewer-stage img {
+  cursor: grab;
 }
 
 .viewer-stage figcaption {
