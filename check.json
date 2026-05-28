@@ -168,7 +168,7 @@
     {
       "id": "github_push_remote",
       "title": "GitHub 원격 저장소 연결 및 push",
-      "status": "in_progress"
+      "status": "done"
     }
   ]
 }
