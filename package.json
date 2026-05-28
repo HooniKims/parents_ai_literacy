@@ -1,0 +1,10 @@
+{
+  "name": "deungchon-parent-ai-literacy",
+  "private": true,
+  "scripts": {
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

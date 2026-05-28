@@ -1,0 +1,25 @@
+node_modules/
+test-results/
+playwright-report/
+
+# Local verification files
+tests/
+playwright.config.js
+package-lock.json
+package.json
+
+# Project docs and setup helpers
+README.md
+apps-script-guide.md
+apps-script-code.gs
+check.json
+
+# Preserved source files, not needed by the live page
+assets/slides/**/*.pdf
+
+# Generated screenshots or temporary captures
+*.png
+main-page.png
+mobile-main-page.png
+mobile-main-page-wait.png
+signature-viewer-page.png

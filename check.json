@@ -1,0 +1,174 @@
+{
+  "tasks": [
+    {
+      "id": "project_structure",
+      "title": "정적 웹페이지 파일 구조 만들기",
+      "status": "done"
+    },
+    {
+      "id": "main_page",
+      "title": "학부모용 메인 페이지 구현",
+      "status": "done"
+    },
+    {
+      "id": "main_styles",
+      "title": "기존 학부모총회 스타일을 반영한 CSS 구현",
+      "status": "done"
+    },
+    {
+      "id": "main_script",
+      "title": "Canva 표시, 입력 검증, 서명 패드, 제출 흐름 구현",
+      "status": "done"
+    },
+    {
+      "id": "signature_viewer",
+      "title": "관리자용 서명 복원 페이지 구현",
+      "status": "done"
+    },
+    {
+      "id": "apps_script_guide",
+      "title": "Google Sheets 및 Apps Script 연결 가이드 작성",
+      "status": "done"
+    },
+    {
+      "id": "netlify_docs",
+      "title": "Netlify 배포 안내 README 작성",
+      "status": "done"
+    },
+    {
+      "id": "verification",
+      "title": "로컬 서버와 브라우저로 동작 검증",
+      "status": "done"
+    },
+    {
+      "id": "image_viewer_plan",
+      "title": "이미지 슬라이드 전체화면 뷰어 계획 정리",
+      "status": "done"
+    },
+    {
+      "id": "image_viewer_markup",
+      "title": "이미지 슬라이드 미리보기 및 전체화면 마크업 추가",
+      "status": "done"
+    },
+    {
+      "id": "image_viewer_styles",
+      "title": "모바일 유도 모션과 전체화면 뷰어 스타일 추가",
+      "status": "done"
+    },
+    {
+      "id": "image_viewer_script",
+      "title": "슬라이드 렌더링, 스와이프, 이전 다음, 닫기 동작 구현",
+      "status": "done"
+    },
+    {
+      "id": "image_viewer_docs_tests",
+      "title": "이미지 슬라이드 사용법 문서화 및 Playwright 검증",
+      "status": "done"
+    },
+    {
+      "id": "responsive_korean_title_breaks",
+      "title": "PC와 모바일 제목 줄바꿈을 한국어 의미 단위로 수정",
+      "status": "done"
+    },
+    {
+      "id": "orientation_lock_ux",
+      "title": "전체화면 슬라이드에서 가능한 기기 자동 가로 전환 UX 정리",
+      "status": "done"
+    },
+    {
+      "id": "hero_title_two_line_fix",
+      "title": "히어로 제목을 PC와 모바일 모두 두 줄 의미 단위로 수정",
+      "status": "done"
+    },
+    {
+      "id": "hero_title_desktop_overflow_fix",
+      "title": "PC 히어로 제목이 오른쪽 비주얼 영역을 침범하지 않도록 수정",
+      "status": "done"
+    },
+    {
+      "id": "language_toggle_design",
+      "title": "한국어/영어 전환 구조 설계",
+      "status": "done"
+    },
+    {
+      "id": "language_toggle_markup",
+      "title": "상단 우측 언어 전환 버튼과 번역 대상 마크업 추가",
+      "status": "done"
+    },
+    {
+      "id": "language_toggle_script",
+      "title": "한국어/영어 문구 전환 및 언어별 슬라이드 이미지 구조 구현",
+      "status": "done"
+    },
+    {
+      "id": "language_toggle_docs_tests",
+      "title": "영문 전환 사용법 문서화 및 Playwright 검증",
+      "status": "done"
+    },
+    {
+      "id": "cleanup_generated_artifacts",
+      "title": "검증용 스크린샷과 재생성 가능한 임시 파일 정리",
+      "status": "done"
+    },
+    {
+      "id": "extract_pdf_slides",
+      "title": "한국어/영어 PDF를 슬라이드 이미지로 추출",
+      "status": "done"
+    },
+    {
+      "id": "wire_extracted_slides",
+      "title": "추출한 슬라이드 이미지를 언어별 뷰어에 연결",
+      "status": "done"
+    },
+    {
+      "id": "preserve_source_pdfs",
+      "title": "재업로드된 한국어/영어 원본 PDF 보존",
+      "status": "done"
+    },
+    {
+      "id": "verify_extracted_slides",
+      "title": "언어별 슬라이드 표시와 기존 기능 검증",
+      "status": "done"
+    },
+    {
+      "id": "responsive_slide_assets",
+      "title": "모바일/PC용 반응형 슬라이드 이미지 크기 생성 및 연결",
+      "status": "done"
+    },
+    {
+      "id": "inline_slide_swipe_fix",
+      "title": "모바일 슬라이드 미리보기 좌우 스와이프와 페이지 가로 밀림 수정",
+      "status": "done"
+    },
+    {
+      "id": "cleanup_audit",
+      "title": "런타임/검증/배포 기준으로 불필요 파일 점검",
+      "status": "done"
+    },
+    {
+      "id": "cleanup_node_modules",
+      "title": "재설치 가능한 node_modules 폴더 삭제",
+      "status": "done"
+    },
+    {
+      "id": "cleanup_netlify_ignore",
+      "title": "Netlify 배포 제외 파일 목록 정리",
+      "status": "done"
+    },
+    {
+      "id": "github_verify_before_push",
+      "title": "GitHub 업로드 전 로컬 검증",
+      "status": "done"
+    },
+    {
+      "id": "github_initial_commit",
+      "title": "Git 저장소 초기화 및 첫 커밋 생성",
+      "status": "done"
+    },
+    {
+      "id": "github_push_remote",
+      "title": "GitHub 원격 저장소 연결 및 push",
+      "status": "in_progress"
+    }
+  ]
+}
